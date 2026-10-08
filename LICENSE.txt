@@ -117,136 +117,37 @@ SOFTWARE.
 
 ===============================================================
 
-LIVOX’s Livox-SDK2 uses unmodified source code of RapidJSON (https://github.com/Tencent/rapidjson), which is also licensed under MIT license. A copy of the MIT license is provided below and is also available at https://opensource.org/licenses/MIT.
-
-Livox-SDK2
-── 3rdparty
-│   └── rapidjson
-│       ├── allocators.h
-│       ├── cursorstreamwrapper.h
-│       ├── document.h
-│       ├── encodedstream.h
-│       ├── encodings.h
-│       ├── error
-│       │   ├── en.h
-│       │   └── error.h
-│       ├── filereadstream.h
-│       ├── filewritestream.h
-│       ├── fwd.h
-│       ├── internal
-│       │   ├── biginteger.h
-│       │   ├── clzll.h
-│       │   ├── diyfp.h
-│       │   ├── dtoa.h
-│       │   ├── ieee754.h
-│       │   ├── itoa.h
-│       │   ├── meta.h
-│       │   ├── pow10.h
-│       │   ├── regex.h
-│       │   ├── stack.h
-│       │   ├── strfunc.h
-│       │   ├── strtod.h
-│       │   └── swap.h
-│       ├── istreamwrapper.h
-│       ├── license.txt
-│       ├── memorybuffer.h
-│       ├── memorystream.h
-│       ├── msinttypes
-│       │   ├── inttypes.h
-│       │   └── stdint.h
-│       ├── ostreamwrapper.h
-│       ├── pointer.h
-│       ├── prettywriter.h
-│       ├── rapidjson.h
-│       ├── reader.h
-│       ├── schema.h
-│       ├── stream.h
-│       ├── stringbuffer.h
-│       └── writer.h
+This fork of Livox-SDK2 uses unmodified source code of JSON for Modern C++ v3.12.0 (https://github.com/nlohmann/json), located at 3rdparty/nlohmann/json.hpp, which is licensed under MIT license. A copy of the MIT license is provided below and is also available at https://opensource.org/licenses/MIT.
 
 ---------------------------------------------------------------
 
-Tencent is pleased to support the open source community by making RapidJSON
-available.
-Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All
-rights reserved.
-Licensed under the MIT License (the "License"); you may not use this file
-except in compliance with the License. You may obtain a copy of the License
-at http://opensource.org/licenses/MIT
+MIT License 
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-License for the specific language governing permissions and limitations under
-the License.
+Copyright (c) 2013-2025 Niels Lohmann
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 
 =============================================================
 
-LIVOX’s Livox SDK uses unmodified libraries of spdlog(https://github.com/gabime/spdlog), which is licensed under MIT license. A copy of the MIT license is provided below and is also available at https://opensource.org/licenses/MIT.
+This fork of Livox-SDK2 uses unmodified source code of spdlog v1.17.0 (https://github.com/gabime/spdlog), located at 3rdparty/spdlog, which is licensed under MIT license. A copy of the MIT license is provided below and is also available at https://opensource.org/licenses/MIT.
 
-Livox-SDK2
-├── 3rdparty
-│   └── spdlog
-│       ├── LICENSE
-│       └── spdlog
-│           ├── async.h
-│           ├── async_logger.h
-│           ├── common.h
-│           ├── details
-│           │   ├── async_logger_impl.h
-│           │   ├── circular_q.h
-│           │   ├── console_globals.h
-│           │   ├── file_helper.h
-│           │   ├── fmt_helper.h
-│           │   ├── logger_impl.h
-│           │   ├── log_msg.h
-│           │   ├── mpmc_blocking_q.h
-│           │   ├── null_mutex.h
-│           │   ├── os.h
-│           │   ├── pattern_formatter.h
-│           │   ├── periodic_worker.h
-│           │   ├── registry.h
-│           │   └── thread_pool.h
-│           ├── fmt
-│           │   ├── bin_to_hex.h
-│           │   ├── bundled
-│           │   │   ├── chrono.h
-│           │   │   ├── color.h
-│           │   │   ├── core.h
-│           │   │   ├── format.h
-│           │   │   ├── format-inl.h
-│           │   │   ├── LICENSE.rst
-│           │   │   ├── locale.h
-│           │   │   ├── ostream.h
-│           │   │   ├── posix.h
-│           │   │   ├── printf.h
-│           │   │   ├── ranges.h
-│           │   │   └── time.h
-│           │   ├── fmt.h
-│           │   └── ostr.h
-│           ├── formatter.h
-│           ├── logger.h
-│           ├── sinks
-│           │   ├── android_sink.h
-│           │   ├── ansicolor_sink.h
-│           │   ├── base_sink.h
-│           │   ├── basic_file_sink.h
-│           │   ├── daily_file_sink.h
-│           │   ├── dist_sink.h
-│           │   ├── msvc_sink.h
-│           │   ├── null_sink.h
-│           │   ├── ostream_sink.h
-│           │   ├── rotating_file_sink.h
-│           │   ├── sink.h
-│           │   ├── stdout_color_sinks.h
-│           │   ├── stdout_sinks.h
-│           │   ├── syslog_sink.h
-│           │   └── wincolor_sink.h
-│           ├── spdlog.h
-│           ├── tweakme.h
-│           └── version.h
-
----------------------------------------------------------------
 
 The MIT License (MIT)
 

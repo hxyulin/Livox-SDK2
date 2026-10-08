@@ -1,7 +1,9 @@
 
 #include "parse_lidar_state_info.h"
 #include "base/logging.h"
+#include "nlohmann/json.hpp"
 
+#include <cstring>
 #include <iostream>
 #include <sstream>
 
@@ -399,405 +401,134 @@ void ParseLidarStateInfo::ParseIpCfg(const CommPacket& packet, uint16_t off, Liv
   return;
 }
 
+namespace {
+
+// Fixed-size char fields from the lidar are not guaranteed to be NUL-terminated.
+template <size_t N>
+std::string FieldString(const char (&field)[N]) {
+  return std::string(field, strnlen(field, N));
+}
+
+template <typename T, size_t N>
+nlohmann::ordered_json FieldArray(const T (&field)[N]) {
+  nlohmann::ordered_json arr = nlohmann::ordered_json::array();
+  for (size_t i = 0; i < N; ++i) {
+    arr.push_back(field[i]);
+  }
+  return arr;
+}
+
+template <typename T>
+nlohmann::ordered_json IpCfg(const char (&ip)[16], T dst_port, T src_port) {
+  return {{"ip", FieldString(ip)}, {"dst_port", dst_port}, {"src_port", src_port}};
+}
+
+nlohmann::ordered_json Fov(const FovCfg& fov) {
+  return {{"yaw_start", fov.yaw_start}, {"yaw_stop", fov.yaw_stop},
+          {"pitch_start", fov.pitch_start}, {"pitch_stop", fov.pitch_stop}};
+}
+
+} // namespace
+
 void ParseLidarStateInfo::LivoxLidarStateInfoToJson(const DirectLidarStateInfo& info, const std::set<ParamKeyName>& key_mask, std::string& lidar_info) {
-  rapidjson::StringBuffer buf;
-  rapidjson::PrettyWriter<rapidjson::StringBuffer> write(buf);
-  write.StartObject();
+  // ordered_json keeps keys in insertion order, matching the previous output.
+  nlohmann::ordered_json j = nlohmann::ordered_json::object();
+  auto has = [&key_mask](ParamKeyName key) { return key_mask.find(key) != key_mask.end(); };
 
-  // write.Key("dev_type");
-  // write.String("MID360");
-  
-  if (key_mask.find(kKeyPclDataType) != key_mask.end()) {
-    write.Key("pcl_data_type");
-    write.Uint(info.pcl_data_type);    
+  if (has(kKeyPclDataType)) j["pcl_data_type"] = info.pcl_data_type;
+  if (has(kKeyPatternMode)) j["pattern_mode"] = info.pattern_mode;
+  if (has(kKeyDualEmitEn)) j["dual_emit_en"] = info.dual_emit_en;
+  if (has(kKeyPointSendEn)) j["point_send_en"] = info.point_send_en;
+  if (has(kKeyLidarIpCfg)) {
+    j["lidar_ipcfg"] = {{"lidar_ip", FieldString(info.lidar_ipcfg.ip_addr)},
+                        {"lidar_subnet_mask", FieldString(info.lidar_ipcfg.net_mask)},
+                        {"lidar_gateway", FieldString(info.lidar_ipcfg.gw_addr)}};
   }
-
-  if (key_mask.find(kKeyPatternMode) != key_mask.end()) {
-    write.Key("pattern_mode");
-    write.Uint(info.pattern_mode);
+  if (has(kKeyStateInfoHostIpCfg)) {
+    j["state_info_host_ipcfg"] = IpCfg(info.host_state_info.host_ip_addr,
+        info.host_state_info.host_state_info_port, info.host_state_info.lidar_state_info_port);
   }
-  
-  if (key_mask.find(kKeyDualEmitEn) != key_mask.end()) {
-    write.Key("dual_emit_en");
-    write.Uint(info.dual_emit_en);
+  if (has(kKeyLidarPointDataHostIpCfg)) {
+    j["ponitcloud_host_ipcfg"] = IpCfg(info.pointcloud_host_ipcfg.host_ip_addr,
+        info.pointcloud_host_ipcfg.host_point_data_port, info.pointcloud_host_ipcfg.lidar_point_data_port);
   }
-  
-  if (key_mask.find(kKeyPointSendEn) != key_mask.end()) {
-    write.Key("point_send_en");
-    write.Uint(info.point_send_en);
+  if (has(kKeyLidarImuHostIpCfg)) {
+    j["imu_host_ipcfg"] = IpCfg(info.imu_host_ipcfg.host_ip_addr,
+        info.imu_host_ipcfg.host_imu_data_port, info.imu_host_ipcfg.lidar_imu_data_port);
   }
-  
-  if (key_mask.find(kKeyLidarIpCfg) != key_mask.end()) {
-    write.Key("lidar_ipcfg");
-    write.StartObject();
-    write.Key("lidar_ip");
-    write.String(info.lidar_ipcfg.ip_addr);
-    write.Key("lidar_subnet_mask");
-    write.String(info.lidar_ipcfg.net_mask);
-    write.Key("lidar_gateway");
-    write.String(info.lidar_ipcfg.gw_addr);
-    write.EndObject();    
+  if (has(kKeyCtlHostIpCfg)) {
+    j["ctl_host_ipcfg"] = IpCfg(info.ctl_host_ipcfg.ip_addr, info.ctl_host_ipcfg.dst_port, info.ctl_host_ipcfg.src_port);
   }
-  
-  if (key_mask.find(kKeyStateInfoHostIpCfg) != key_mask.end()) {
-    write.Key("state_info_host_ipcfg");
-    write.StartObject();
-    write.Key("ip");
-    write.String(info.host_state_info.host_ip_addr);
-    write.Key("dst_port");
-    write.Uint(info.host_state_info.host_state_info_port);
-    write.Key("src_port");
-    write.Uint(info.host_state_info.lidar_state_info_port);
-    write.EndObject();
+  if (has(kKeyLogHostIpCfg)) {
+    j["log_host_ipcfg"] = IpCfg(info.log_host_ipcfg.ip_addr, info.log_host_ipcfg.dst_port, info.log_host_ipcfg.src_port);
   }
-  
-  if (key_mask.find(kKeyLidarPointDataHostIpCfg) != key_mask.end()) {
-    write.Key("ponitcloud_host_ipcfg");
-    write.StartObject();
-    write.Key("ip");
-    write.String(info.pointcloud_host_ipcfg.host_ip_addr);
-    write.Key("dst_port");
-    write.Uint(info.pointcloud_host_ipcfg.host_point_data_port);
-    write.Key("src_port");
-    write.Uint(info.pointcloud_host_ipcfg.lidar_point_data_port);
-    write.EndObject();
+  if (has(kKeyVehicleSpeed)) j["vehicle_speed"] = info.vehicle_speed;
+  if (has(kKeyEnvironmentTemp)) j["environment_temp"] = info.environment_temp;
+  if (has(kKeyInstallAttitude)) {
+    const LivoxLidarInstallAttitude& att = info.install_attitude;
+    j["install_attitude"] = {{"roll_deg", static_cast<double>(att.roll_deg)},
+                             {"pitch_deg", static_cast<double>(att.pitch_deg)},
+                             {"yaw_deg", static_cast<double>(att.yaw_deg)},
+                             {"x_mm", att.x}, {"y_mm", att.y}, {"z_mm", att.z}};
   }
-  
-  if (key_mask.find(kKeyLidarImuHostIpCfg) != key_mask.end()) {
-    write.Key("imu_host_ipcfg");
-    write.StartObject();
-    write.Key("ip");
-    write.String(info.imu_host_ipcfg.host_ip_addr);
-    write.Key("dst_port");
-    write.Uint(info.imu_host_ipcfg.host_imu_data_port);
-    write.Key("src_port");
-    write.Uint(info.imu_host_ipcfg.lidar_imu_data_port);
-    write.EndObject();
+  if (has(kKeyBlindSpotSet)) j["blind_spot_set"] = info.blind_spot_set;
+  if (has(kKeyFrameRate)) j["frame_rate"] = info.frame_rate;
+  if (has(kKeyFovCfg0)) j["fov_cfg0"] = Fov(info.fov_cfg0);
+  if (has(kKeyFovCfg1)) j["fov_cfg1"] = Fov(info.fov_cfg1);
+  if (has(kKeyFovCfgEn)) j["fov_cfg_en"] = info.fov_cfg_en;
+  if (has(kKeyDetectMode)) j["detect_mode"] = info.detect_mode;
+  if (has(kKeyFuncIoCfg)) {
+    j["func_io_cfg"] = {{"IN0", info.func_io_cfg[0]}, {"IN1", info.func_io_cfg[1]},
+                        {"OUT0", info.func_io_cfg[2]}, {"OUT1", info.func_io_cfg[3]}};
   }
-  
-  if (key_mask.find(kKeyCtlHostIpCfg) != key_mask.end()) {
-    write.Key("ctl_host_ipcfg");
-    write.StartObject();
-    write.Key("ip");
-    write.String(info.ctl_host_ipcfg.ip_addr);
-    write.Key("dst_port");
-    write.Uint(info.ctl_host_ipcfg.dst_port);
-    write.Key("src_port");
-    write.Uint(info.ctl_host_ipcfg.src_port);
-    write.EndObject();
+  if (has(kKeyWorkMode)) j["work_tgt_mode"] = info.work_tgt_mode;
+  if (has(kKeyGlassHeat)) j["glass_heat"] = info.glass_heat;
+  if (has(kKeyImuDataEn)) j["imu_data_en"] = info.imu_data_en;
+  if (has(kKeyFusaEn)) j["fusa_en"] = info.fusa_en;
+  if (has(kKeySetEscMode)) j["esc_mode"] = info.esc_mode;
+  if (has(kKeySetFovMode)) j["fov_mode"] = info.fov_mode;
+  if (has(kKeySetEchoMode)) j["echo_mode"] = info.echo_mode;
+  if (has(kKeySetNTPServerIp)) j["ntp_server_ip"] = FieldString(info.ntp_server_ip.host_ip);
+  if (has(kKeySetITOCtrl)) j["ito_mode"] = info.ito_mode;
+  if (has(kKeySetFogNoiseFilter)) j["fog_noise_filter"] = info.fog_noise_filter;
+  if (has(kKeySetPclFreqMod)) j["pcl_freq_mode"] = info.pcl_freq_mode;
+  if (has(kKeySetTimeFilterMode)) j["time_filter_mode"] = info.time_filter_mode;
+  if (has(kKeySetImuRange)) {
+    j["imu_range"] = {{"imu_out_rate", info.imu_range.imu_out_rate},
+                      {"accel_range", info.imu_range.accel_range},
+                      {"gyro_range", info.imu_range.gyro_range}};
   }
-  
-  if (key_mask.find(kKeyLogHostIpCfg) != key_mask.end()) {
-    write.Key("log_host_ipcfg");
-    write.StartObject();
-    write.Key("ip");
-    write.String(info.log_host_ipcfg.ip_addr);
-    write.Key("dst_port");
-    write.Uint(info.log_host_ipcfg.dst_port);
-    write.Key("src_port");
-    write.Uint(info.log_host_ipcfg.src_port);
-    write.EndObject();
-  }
-  
-  if (key_mask.find(kKeyVehicleSpeed) != key_mask.end()) {
-    write.Key("vehicle_speed");
-    write.Int(info.vehicle_speed);
-  }
-  
-  if (key_mask.find(kKeyEnvironmentTemp) != key_mask.end()) {
-    write.Key("environment_temp");
-    write.Int(info.environment_temp);
-  }
-  
-  if (key_mask.find(kKeyInstallAttitude) != key_mask.end()) {
-    write.Key("install_attitude");
-    write.StartObject();
-    write.Key("roll_deg");
-    write.Double(info.install_attitude.roll_deg);
-    write.Key("pitch_deg");
-    write.Double(info.install_attitude.pitch_deg);
-    write.Key("yaw_deg");
-    write.Double(info.install_attitude.yaw_deg);
-    write.Key("x_mm");
-    write.Uint(info.install_attitude.x);
-    write.Key("y_mm");
-    write.Uint(info.install_attitude.y);
-    write.Key("z_mm");
-    write.Uint(info.install_attitude.z);
-    write.EndObject();
-  }
-  
-  if (key_mask.find(kKeyBlindSpotSet) != key_mask.end()) {
-    write.Key("blind_spot_set");
-    write.Uint(info.blind_spot_set);
-  }
-  
-  if (key_mask.find(kKeyFrameRate) != key_mask.end()) {
-    write.Key("frame_rate");
-    write.Uint(info.frame_rate);
-  }
-  
-  if (key_mask.find(kKeyFovCfg0) != key_mask.end()) {
-    write.Key("fov_cfg0");
-    write.StartObject();
-    write.Key("yaw_start");
-    write.Int(info.fov_cfg0.yaw_start);
-    write.Key("yaw_stop");
-    write.Int(info.fov_cfg0.yaw_stop);
-    write.Key("pitch_start");
-    write.Int(info.fov_cfg0.pitch_start);
-    write.Key("pitch_stop");
-    write.Int(info.fov_cfg0.pitch_stop);
-    write.EndObject();
-  }
-  
-  if (key_mask.find(kKeyFovCfg1) != key_mask.end()) {
-    write.Key("fov_cfg1");
-    write.StartObject();
-    write.Key("yaw_start");
-    write.Int(info.fov_cfg1.yaw_start);
-    write.Key("yaw_stop");
-    write.Int(info.fov_cfg1.yaw_stop);
-    write.Key("pitch_start");
-    write.Int(info.fov_cfg1.pitch_start);
-    write.Key("pitch_stop");
-    write.Int(info.fov_cfg1.pitch_stop);
-    write.EndObject(); 
-  }
-  
-  if (key_mask.find(kKeyFovCfgEn) != key_mask.end()) {
-    write.Key("fov_cfg_en");
-    write.Uint(info.fov_cfg_en);
-  }
-  
-  if (key_mask.find(kKeyDetectMode) != key_mask.end()) {
-    write.Key("detect_mode");
-    write.Uint(info.detect_mode);
-  }
-  
-  if (key_mask.find(kKeyFuncIoCfg) != key_mask.end()) {
-    write.Key("func_io_cfg");
-    write.StartObject();
-    write.Key("IN0");
-    write.Uint(info.func_io_cfg[0]);
-    write.Key("IN1");
-    write.Uint(info.func_io_cfg[1]);
-    write.Key("OUT0");
-    write.Uint(info.func_io_cfg[2]);
-    write.Key("OUT1");
-    write.Uint(info.func_io_cfg[3]);
-    write.EndObject(); 
-  }
-
-  if (key_mask.find(kKeyWorkMode) != key_mask.end()) {
-    write.Key("work_tgt_mode");
-    write.Uint(info.work_tgt_mode);
-  }
-  
-  if (key_mask.find(kKeyGlassHeat) != key_mask.end()) {
-    write.Key("glass_heat");
-    write.Uint(info.glass_heat);
-  }
-
-  if (key_mask.find(kKeyImuDataEn) != key_mask.end()) {
-    write.Key("imu_data_en");
-    write.Uint(info.imu_data_en);
-  }
-  
-  if (key_mask.find(kKeyFusaEn) != key_mask.end()) {
-    write.Key("fusa_en");
-    write.Uint(info.fusa_en);
-  }
-
-  if (key_mask.find(kKeySetEscMode) != key_mask.end()) {
-    write.Key("esc_mode");
-    write.Uint(info.esc_mode);
-  }
-
-  if (key_mask.find(kKeySetFovMode) != key_mask.end()) {
-    write.Key("fov_mode");
-    write.Uint(info.fov_mode);
-  }
-
-  if (key_mask.find(kKeySetEchoMode) != key_mask.end()) {
-    write.Key("echo_mode");
-    write.Uint(info.echo_mode);
-  }
-
-  if (key_mask.find(kKeySetNTPServerIp) != key_mask.end()) {
-    write.Key("ntp_server_ip");
-    write.String(info.ntp_server_ip.host_ip);
-  }
-
-  if (key_mask.find(kKeySetITOCtrl) != key_mask.end()) {
-    write.Key("ito_mode");
-    write.Uint(info.ito_mode);
-  }
-
-  if (key_mask.find(kKeySetFogNoiseFilter) != key_mask.end()) {
-    write.Key("fog_noise_filter");
-    write.Uint(info.fog_noise_filter);
-  }
-
-  if (key_mask.find(kKeySetPclFreqMod) != key_mask.end()) {
-    write.Key("pcl_freq_mode");
-    write.Uint(info.pcl_freq_mode);
-  }
-
-  if (key_mask.find(kKeySetTimeFilterMode) != key_mask.end()) {
-    write.Key("time_filter_mode");
-    write.Uint(info.time_filter_mode);
-  }
-
-  if (key_mask.find(kKeySetImuRange) != key_mask.end()) {
-    write.Key("imu_range");
-    write.StartObject();
-    write.Key("imu_out_rate");
-    write.Uint(info.imu_range.imu_out_rate);
-    write.Key("accel_range");
-    write.Uint(info.imu_range.accel_range);
-    write.Key("gyro_range");
-    write.Uint(info.imu_range.gyro_range);
-    write.EndObject();
-  }
-  
-  if (key_mask.find(kKeySn) != key_mask.end()) {
-    write.Key("sn");
-    write.String(info.sn);
-  }
-  
-  if (key_mask.find(kKeyProductInfo) != key_mask.end()) {
-    write.Key("product_info");
-    write.String(info.product_info);
-  }
-  
-  if (key_mask.find(kKeyVersionApp) != key_mask.end()) {
-    write.Key("version_app");
-    write.StartArray();
-    write.Uint(info.version_app[0]);
-    write.Uint(info.version_app[1]);
-    write.Uint(info.version_app[2]);
-    write.Uint(info.version_app[3]);
-    write.EndArray();
-  }
-  
-  if (key_mask.find(kKeyVersionLoader) != key_mask.end()) {
-    write.Key("version_loader");
-    write.StartArray();
-    write.Uint(info.version_loader[0]);
-    write.Uint(info.version_loader[1]);
-    write.Uint(info.version_loader[2]);
-    write.Uint(info.version_loader[3]);
-    write.EndArray();
-  }
-  
-  if (key_mask.find(kKeyVersionHardware) != key_mask.end()) {
-    write.Key("version_hardware");
-    write.StartArray();
-    write.Uint(info.version_hardware[0]);
-    write.Uint(info.version_hardware[1]);
-    write.Uint(info.version_hardware[2]);
-    write.Uint(info.version_hardware[3]);
-    write.EndArray();
-  }
-  
-  if (key_mask.find(kKeyMac) != key_mask.end()) {
-    write.Key("mac");
-    write.StartArray();
-    write.Uint(info.mac[0]);
-    write.Uint(info.mac[1]);
-    write.Uint(info.mac[2]);
-    write.Uint(info.mac[3]);
-    write.Uint(info.mac[4]);
-    write.Uint(info.mac[5]);
-    write.EndArray();
-  }
-  
-  if (key_mask.find(kKeyCurWorkState) != key_mask.end()) {
-    write.Key("cur_work_state");
-    write.Uint(info.cur_work_state);
-  }
-  
-  if (key_mask.find(kKeyCoreTemp) != key_mask.end()) {
-    write.Key("core_temp");
-    write.Int(info.core_temp);
-  }
-  
-  if (key_mask.find(kKeyPowerUpCnt) != key_mask.end()) {
-    write.Key("powerup_cnt");
-    write.Uint(info.powerup_cnt);
-  }
-  
-  if (key_mask.find(kKeyLocalTimeNow) != key_mask.end()) {
-    write.Key("local_time_now");
-    write.Uint64(info.local_time_now);
-  }
-  
-  if (key_mask.find(kKeyLastSyncTime) != key_mask.end()) {
-    write.Key("last_sync_time");
-    write.Uint64(info.last_sync_time);
-  }
-  
-  if (key_mask.find(kKeyTimeOffset) != key_mask.end()) {
-    write.Key("time_offset");
-    write.Int64(info.time_offset);
-  }
-  
-  if (key_mask.find(kKeyTimeSyncType) != key_mask.end()) {
-    write.Key("time_sync_type");
-    write.Uint(info.time_sync_type);
-  }
-  
-  if (key_mask.find(kKeyStatusCode) != key_mask.end()) {
-    write.Key("status_code");
+  if (has(kKeySn)) j["sn"] = FieldString(info.sn);
+  if (has(kKeyProductInfo)) j["product_info"] = FieldString(info.product_info);
+  if (has(kKeyVersionApp)) j["version_app"] = FieldArray(info.version_app);
+  if (has(kKeyVersionLoader)) j["version_loader"] = FieldArray(info.version_loader);
+  if (has(kKeyVersionHardware)) j["version_hardware"] = FieldArray(info.version_hardware);
+  if (has(kKeyMac)) j["mac"] = FieldArray(info.mac);
+  if (has(kKeyCurWorkState)) j["cur_work_state"] = info.cur_work_state;
+  if (has(kKeyCoreTemp)) j["core_temp"] = info.core_temp;
+  if (has(kKeyPowerUpCnt)) j["powerup_cnt"] = info.powerup_cnt;
+  if (has(kKeyLocalTimeNow)) j["local_time_now"] = info.local_time_now;
+  if (has(kKeyLastSyncTime)) j["last_sync_time"] = info.last_sync_time;
+  if (has(kKeyTimeOffset)) j["time_offset"] = info.time_offset;
+  if (has(kKeyTimeSyncType)) j["time_sync_type"] = info.time_sync_type;
+  if (has(kKeyStatusCode)) {
     std::ostringstream ss;
     for (int idx = 31; idx >= 0; --idx) {
       ss << std::hex << static_cast<uint32_t>(info.status_code[idx]);
       if (idx != 0) {
         ss << " ";
       }
-    }    
-    write.String(ss.str().c_str());
+    }
+    j["status_code"] = ss.str();
   }
-  
-  if (key_mask.find(kKeyLidarDiagStatus) != key_mask.end()) {
-    write.Key("lidar_diag_status");
-    write.Uint(info.lidar_diag_status);
-  }
-  
-  if (key_mask.find(kKeyLidarFlashStatus) != key_mask.end()) {
-    write.Key("lidar_flash_status");
-    write.Uint(info.lidar_flash_status);
-  }
-  
-  if (key_mask.find(kKeyFwType) != key_mask.end()) {
-    write.Key("FW_TYPE");
-    write.Uint(info.fw_type);
-  }
-  
-  if (key_mask.find(kKeyHmsCode) != key_mask.end()) {
-    write.Key("hms_code");
-    write.StartArray();
-    write.Uint(info.hms_code[0]);
-    write.Uint(info.hms_code[1]);
-    write.Uint(info.hms_code[2]);
-    write.Uint(info.hms_code[3]);
-    write.Uint(info.hms_code[4]);
-    write.Uint(info.hms_code[5]);
-    write.Uint(info.hms_code[6]);
-    write.Uint(info.hms_code[7]);
-    write.EndArray();
-  }
-  
-  if (key_mask.find(kKeyRoiMode) != key_mask.end()) {
-    write.Key("ROI_Mode");
-    write.Uint(info.ROI_Mode);
-  } 
+  if (has(kKeyLidarDiagStatus)) j["lidar_diag_status"] = info.lidar_diag_status;
+  if (has(kKeyLidarFlashStatus)) j["lidar_flash_status"] = info.lidar_flash_status;
+  if (has(kKeyFwType)) j["FW_TYPE"] = info.fw_type;
+  if (has(kKeyHmsCode)) j["hms_code"] = FieldArray(info.hms_code);
+  if (has(kKeyRoiMode)) j["ROI_Mode"] = info.ROI_Mode;
 
-  write.EndObject();
-
-  lidar_info = buf.GetString();
-  // LOG_INFO("###################################lidar_info_to_json:{}", lidar_info.c_str());
+  // Replace invalid UTF-8 from device strings instead of throwing on the IO thread.
+  lidar_info = j.dump(4, ' ', false, nlohmann::ordered_json::error_handler_t::replace);
 }
 
 } // namespace livox

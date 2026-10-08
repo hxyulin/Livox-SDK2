@@ -27,9 +27,7 @@
 
 #include "livox_lidar_def.h"
 
-#include "rapidjson/document.h"
-#include "rapidjson/filereadstream.h"
-#include "rapidjson/stringbuffer.h"
+#include "nlohmann/json.hpp"
 
 #include "comm/define.h"
 
@@ -50,21 +48,20 @@ class ParseCfgFile {
              std::shared_ptr<LivoxLidarSdkFrameworkCfg>& sdk_framework_cfg_ptr
              );
  private:
-  bool ParseLidarCfg(const rapidjson::Value &object,
+  bool ParseLidarCfg(const nlohmann::json &object,
                      const uint8_t& device_type,
                      std::shared_ptr<std::vector<LivoxLidarCfg>>& lidars_cfg_ptr,
                      std::shared_ptr<std::vector<LivoxLidarCfg>>& custom_lidars_cfg_ptr);
-  bool ParseNewLidarCfg(const rapidjson::Value &object,
+  bool ParseNewLidarCfg(const nlohmann::json &object,
                      const uint8_t& device_type,
                      std::shared_ptr<std::vector<LivoxLidarCfg>>& lidars_cfg_ptr,
                      std::shared_ptr<std::vector<LivoxLidarCfg>>& custom_lidars_cfg_ptr);
-  bool ParseOldLidarCfg(const rapidjson::Value &object,
+  bool ParseOldLidarCfg(const nlohmann::json &object,
                         const uint8_t& device_type,
                         std::shared_ptr<std::vector<LivoxLidarCfg>>& lidars_cfg_ptr);
-  bool ParseTypeLidarCfg(const rapidjson::Value &object, const rapidjson::Value &host_net_info_object, const uint8_t& device_type, LivoxLidarCfg& lidar_cfg);
-  bool ParseLidarNetInfo(const rapidjson::Value &object, LivoxLidarNetInfo& lidar_net_info);
-  bool ParseHostNetInfo(const rapidjson::Value &host_net_info_object, HostNetInfo& host_net_info);
-  bool ParseGeneralCfgInfo(const rapidjson::Value &object, GeneralCfgInfo& general_cfg_info);
+  bool ParseTypeLidarCfg(const nlohmann::json &object, const nlohmann::json &host_net_info_object, const uint8_t& device_type, LivoxLidarCfg& lidar_cfg);
+  bool ParseLidarNetInfo(const nlohmann::json &object, LivoxLidarNetInfo& lidar_net_info);
+  bool ParseHostNetInfo(const nlohmann::json &host_net_info_object, HostNetInfo& host_net_info);
  private:
   const std::string path_;
 };
@@ -73,4 +70,3 @@ class ParseCfgFile {
 } // namespace livox
 
 #endif // LIVOX_PARSE_CFG_FILE_H_
-

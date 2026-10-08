@@ -35,11 +35,6 @@
 
 #include "livox_lidar_def.h"
 
-#include "rapidjson/document.h"
-#include "rapidjson/filereadstream.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/prettywriter.h"
-
 namespace livox {
 
 namespace lidar {
