@@ -83,8 +83,9 @@ class SdkProtocol : public Protocol {
 
   bool CheckPreamble(uint8_t *buf, uint32_t buf_size);
  private:
-  FastCRC16 crc_16_;
-  FastCRC32 crc_32_;
+  // CRCs use per-call FastCRC objects: FastCRC keeps the running value in a
+  // member, and one SdkProtocol is shared by the detection send and receive
+  // threads.
 };
 } // namespace lidar
 }  // namespace livox

@@ -91,11 +91,13 @@ class GeneralCommandHandler : public noncopyable {
   void AddDetectedLidar(const std::shared_ptr<std::vector<LivoxLidarCfg>>& custom_lidars_cfg_ptr);
 
   void SetLivoxLidarInfoChangeCallback(LivoxLidarInfoChangeCallback cb, void* client_data) {
+    std::lock_guard<std::mutex> lock(callbacks_mutex_);
     livox_lidar_info_change_cb_ = cb;
     livox_lidar_info_change_client_data_ = client_data;
   }
 
   void SetLivoxLidarInfoCallback(LivoxLidarInfoCallback cb, void* client_data) {
+    std::lock_guard<std::mutex> lock(callbacks_mutex_);
     livox_lidar_info_cb_ = cb;
     livox_lidar_info_client_data_ = client_data;
   }
@@ -115,7 +117,7 @@ class GeneralCommandHandler : public noncopyable {
   void LivoxLidarInfoChange(const uint32_t handle);
   void PushLivoxLidarInfo(const uint32_t handle, const std::string& info);
   bool GetQueryLidarInternalInfoKeys(const uint32_t handle, std::set<ParamKeyName>& key_sets);
-  const LivoxLidarCfg& GetLidarCfg(const uint32_t handle);
+  LivoxLidarCfg GetLidarCfg(const uint32_t handle);
   livox_status LivoxLidarRequestReset(uint32_t handle, LivoxLidarResetCallback cb, void* client_data);
   static void QueryFwTypeCallback(livox_status status, uint32_t handle, LivoxLidarDiagInternalInfoResponse* response, void* client_data);
  private:
@@ -131,6 +133,9 @@ class GeneralCommandHandler : public noncopyable {
   std::unique_ptr<CommPort> comm_port_;
 
   std::map<uint32_t, LivoxLidarCfg> custom_lidars_cfg_map_;
+  // Guards custom_lidars_cfg_map_ against lookups from API threads while the
+  // detection thread adds lidars.
+  std::mutex lidars_cfg_mutex_;
 
   std::mutex dev_type_mutex_;
   std::map<uint32_t, uint8_t> device_dev_type_;
@@ -149,6 +154,9 @@ class GeneralCommandHandler : public noncopyable {
 
   LivoxLidarInfoCallback livox_lidar_info_cb_;
   void* livox_lidar_info_client_data_;
+  // Guards the two callback pairs above; the application may register them
+  // while the IO threads are already invoking them.
+  std::mutex callbacks_mutex_;
 
   LivoxLidarCmdObserverCallBack cmd_observer_cb_{nullptr};
   void* cmd_observer_client_data_{nullptr};

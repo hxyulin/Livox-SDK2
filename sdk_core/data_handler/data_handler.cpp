@@ -72,14 +72,22 @@ void DataHandler::Handle(const uint8_t dev_type, const uint32_t handle, uint8_t 
     return;
   }
 
-  if (lidar_data->data_type == kLivoxLidarImuData) {
-    if (imu_data_callbacks_) {
-      imu_data_callbacks_(handle, dev_type, lidar_data, imu_client_data_);
+  // Copy the callback under the lock so the application can register it while
+  // data is already flowing, and call it unlocked so it may re-register.
+  DataCallback callback;
+  void* client_data = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (lidar_data->data_type == kLivoxLidarImuData) {
+      callback = imu_data_callbacks_;
+      client_data = imu_client_data_;
+    } else {
+      callback = point_data_callbacks_;
+      client_data = point_client_data_;
     }
-  } else {  
-    if (point_data_callbacks_) {
-      point_data_callbacks_(handle, dev_type, lidar_data, point_client_data_);
-    }
+  }
+  if (callback) {
+    callback(handle, dev_type, lidar_data, client_data);
   }
 
   {
@@ -125,11 +133,13 @@ uint16_t DataHandler::GenerateObserverId() {
 }
 
 void DataHandler::SetPointDataCallback(const DataCallback& cb, void *client_data) {
+  std::lock_guard<std::mutex> lock(mutex_);
   point_data_callbacks_ = cb;
   point_client_data_ = client_data;
 }
 
 void DataHandler::SetImuDataCallback(const DataCallback& cb, void* client_data) {
+  std::lock_guard<std::mutex> lock(mutex_);
   imu_data_callbacks_ = cb;
   imu_client_data_ = client_data;
 }

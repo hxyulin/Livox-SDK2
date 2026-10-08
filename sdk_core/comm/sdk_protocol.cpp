@@ -58,12 +58,12 @@ int32_t SdkProtocol::Pack(uint8_t *o_buf, uint32_t o_buf_size, uint32_t *o_len, 
   sdk_packet->cmd_type = i_packet.cmd_type;
   sdk_packet->sender_type = i_packet.sender_type;
 
-  sdk_packet->crc16_h = crc_16_.ccitt(o_buf, 18);
+  sdk_packet->crc16_h = FastCRC16().ccitt(o_buf, 18);
 
   if (i_packet.data_len == 0) {
     sdk_packet->crc32_d = 0;
   }  else {
-    sdk_packet->crc32_d = crc_32_.crc32(i_packet.data, i_packet.data_len);
+    sdk_packet->crc32_d = FastCRC32().crc32(i_packet.data, i_packet.data_len);
   }
 
   memcpy(sdk_packet->data, i_packet.data, i_packet.data_len);
@@ -128,7 +128,7 @@ bool SdkProtocol::CheckPreamble(uint8_t *buf, uint32_t buf_size) {
     return false;
   }
 
-  uint16_t crc16_h = crc_16_.ccitt(buf, 18);
+  uint16_t crc16_h = FastCRC16().ccitt(buf, 18);
   if (packet->crc16_h != crc16_h) {
     return false;
   }
@@ -138,7 +138,7 @@ bool SdkProtocol::CheckPreamble(uint8_t *buf, uint32_t buf_size) {
    if (packet->length - GetPacketWrapperLen() == 0) {
     crc32_d = 0;
   } else {
-    crc32_d = crc_32_.crc32(packet->data, packet->length - GetPacketWrapperLen());
+    crc32_d = FastCRC32().crc32(packet->data, packet->length - GetPacketWrapperLen());
   }
   
   if (packet->crc32_d != crc32_d) {

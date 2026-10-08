@@ -158,6 +158,10 @@ class DeviceManager : public IOLoop::IOLoopDelegate {
 
   std::map<uint8_t, LivoxLidarCfg> type_lidars_cfg_map_;
   std::map<uint32_t, LivoxLidarCfg> custom_lidars_cfg_map_;
+  // Guards custom_lidars_cfg_map_ and custom_command_channel_. The detection
+  // thread adds lidars at runtime while the data and command threads, and
+  // command senders on any thread, look them up.
+  std::mutex lidars_cfg_mutex_;
 
   socket_t detection_socket_;
   socket_t detection_broadcast_socket_;

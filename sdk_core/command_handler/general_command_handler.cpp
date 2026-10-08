@@ -94,6 +94,7 @@ bool GeneralCommandHandler::Init(std::shared_ptr<std::vector<LivoxLidarCfg>>& cu
 }
 
 void GeneralCommandHandler::AddDetectedLidar(const std::shared_ptr<std::vector<LivoxLidarCfg>>& custom_lidars_cfg_ptr) {
+  std::lock_guard<std::mutex> lock(lidars_cfg_mutex_);
   for (auto it = custom_lidars_cfg_ptr->begin(); it != custom_lidars_cfg_ptr->end(); ++it) {
     const LivoxLidarCfg& lidar_cfg = *it;
     uint32_t lidar_ip = inet_addr(lidar_cfg.lidar_net_info.lidar_ipaddr.c_str());
@@ -126,8 +127,11 @@ void GeneralCommandHandler::Destory() {
     std::map<uint32_t, std::pair<Command, TimePoint> > commands_;
   }
 
-  livox_lidar_info_change_cb_ = nullptr;
-  livox_lidar_info_change_client_data_ = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(callbacks_mutex_);
+    livox_lidar_info_change_cb_ = nullptr;
+    livox_lidar_info_change_client_data_ = nullptr;
+  }
 
   detection_host_ip_ = "";
   is_view_ = false;
@@ -580,8 +584,15 @@ void GeneralCommandHandler::LivoxLidarInfoChange(const uint32_t handle) {
   }
 
   if (!is_callback) {
-    if (livox_lidar_info_change_cb_) {
-      livox_lidar_info_change_cb_(handle, &lidar_info, livox_lidar_info_change_client_data_);
+    LivoxLidarInfoChangeCallback cb = nullptr;
+    void* client_data = nullptr;
+    {
+      std::lock_guard<std::mutex> lock(callbacks_mutex_);
+      cb = livox_lidar_info_change_cb_;
+      client_data = livox_lidar_info_change_client_data_;
+    }
+    if (cb) {
+      cb(handle, &lidar_info, client_data);
     }
   }
 }
@@ -591,8 +602,15 @@ void GeneralCommandHandler::PushLivoxLidarInfo(const uint32_t handle, const std:
   if (device_dev_type_.find(handle) != device_dev_type_.end()) {
     uint8_t dev_type = device_dev_type_[handle];
     
-    if (livox_lidar_info_cb_) {
-      livox_lidar_info_cb_(handle, dev_type, info.c_str(), livox_lidar_info_client_data_);
+    LivoxLidarInfoCallback cb = nullptr;
+    void* client_data = nullptr;
+    {
+      std::lock_guard<std::mutex> lock(callbacks_mutex_);
+      cb = livox_lidar_info_cb_;
+      client_data = livox_lidar_info_client_data_;
+    }
+    if (cb) {
+      cb(handle, dev_type, info.c_str(), client_data);
     }
   }
 }
@@ -789,7 +807,8 @@ bool GeneralCommandHandler::GetQueryLidarInternalInfoKeys(const uint32_t handle,
   return false;
 }
 
-const LivoxLidarCfg& GeneralCommandHandler::GetLidarCfg(const uint32_t handle) {
+LivoxLidarCfg GeneralCommandHandler::GetLidarCfg(const uint32_t handle) {
+  std::lock_guard<std::mutex> lock(lidars_cfg_mutex_);
   return custom_lidars_cfg_map_[handle];
 }
 
