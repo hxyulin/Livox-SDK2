@@ -23,6 +23,8 @@
 //
 #ifndef WIN32
 #include "base/network/network_util.h"
+#include "base/logging.h"
+#include <atomic>
 #include <ifaddrs.h>
 #include <string>
 #include <string.h>
@@ -34,11 +36,28 @@ namespace livox {
 namespace lidar {
 namespace util {
 
+// The kernel silently caps SO_RCVBUF (Linux: net.core.rmem_max, about 208 KB by
+// default). That holds well under 100 ms of MID-360 point data, so any stall in
+// the user callback drops packets. Report the granted size once.
+static void WarnIfRecvBufferSmall(int sock) {
+  static std::atomic<bool> warned(false);
+  const int kMinRecvBufSize = 4 * 1024 * 1024;
+  int granted = 0;
+  socklen_t len = sizeof(granted);
+  if (getsockopt(sock, SOL_SOCKET, SO_RCVBUF, &granted, &len) != 0 || granted >= kMinRecvBufSize ||
+      warned.exchange(true)) {
+    return;
+  }
+  LOG_WARN("UDP receive buffer is only {} KB; point cloud packets may drop when the "
+           "callback stalls. On Linux raise it with: sysctl -w net.core.rmem_max=16777216",
+           granted / 1024);
+}
+
 socket_t CreateSocket(uint16_t port, bool nonblock, bool reuse_port, bool is_broadcast, const std::string netif, const std::string multicast_ip) {
   int status = -1;
   int on = -1;
   int sock = -1;
-  int recv_buff_size = 1024 * 1024 * 200;
+  int recv_buff_size = 16 * 1024 * 1024;
   struct sockaddr_in servaddr;
 
   sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -71,6 +90,7 @@ socket_t CreateSocket(uint16_t port, bool nonblock, bool reuse_port, bool is_bro
 	  close(sock);
 	  return -1;
   }
+  WarnIfRecvBufferSmall(sock);
 
   memset(&servaddr, 0, sizeof(servaddr));
 
