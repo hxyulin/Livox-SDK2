@@ -152,7 +152,7 @@ livox_status LoggerManager::StartLogger(const uint32_t handle, const LivoxLidarL
     return kLivoxLidarStatusSuccess;  
   }
 
-  LOG_INFO("Start Logger handler: {}, log_type: {}", handle, log_type);
+  LOG_INFO("Start Logger handler: {}, log_type: {}", handle, static_cast<int>(log_type));
   if (handlers_.find(handle) == handlers_.end()) {
     if (devices_info_.find(handle) != devices_info_.end()) {
       auto serial_num = devices_info_[handle].sn;
@@ -305,7 +305,7 @@ void LoggerManager::StopAllLogger() {
 livox_status LoggerManager::StopLogger(const uint32_t handle, const LivoxLidarLogType log_type,
     LivoxLidarLoggerCallback cb, void* client_data) {
 
-  LOG_INFO("Stop Logger handler: {}, log_type: {}", handle, log_type);
+  LOG_INFO("Stop Logger handler: {}, log_type: {}", handle, static_cast<int>(log_type));
 
   EnableDeviceLoggerRequest enable_req = {};
   enable_req.log_type = log_type;
